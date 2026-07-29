@@ -7,9 +7,11 @@ export const actions: { [action: string]: string } = {
   jump: " ",
 };
 
-document.onkeydown = (e) => {
-  keys[e.key.toLowerCase()] = true;
-};
-document.onkeyup = (e) => {
-  keys[e.key.toLowerCase()] = false;
-};
+export function initInput() {
+  document.onkeydown = (e) => {
+    keys[e.key.toLowerCase()] = true;
+  };
+  document.onkeyup = (e) => {
+    keys[e.key.toLowerCase()] = false;
+  };
+}
