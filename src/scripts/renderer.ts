@@ -4,10 +4,12 @@ import {
   PCFShadowMap,
   PerspectiveCamera,
   Scene,
-  // Timer,
+  Timer,
 } from "three";
+import { updatePhysics } from "./physics";
+import { PointerLockControls } from "three/examples/jsm/controls/PointerLockControls.js";
 
-// const timer = new Timer();
+const timer = new Timer();
 
 export function initRenderer(scene: Scene, camera: PerspectiveCamera) {
   const renderer = new WebGLRenderer({ antialias: true, alpha: false });
@@ -29,11 +31,21 @@ export function initRenderer(scene: Scene, camera: PerspectiveCamera) {
     camera.updateProjectionMatrix();
   };
 
-  function animate(time: number) {
-    // timer.update(time);
-    // const delta = timer.getDelta();
+  const controls = new PointerLockControls(camera, document.body);
+  document.body.onclick = () => controls.lock();
 
-    // updatePhysics(delta);
+  controls.addEventListener("lock", function () {
+    document.dispatchEvent(new CustomEvent("lock"));
+  });
+  controls.addEventListener("unlock", function () {
+    document.dispatchEvent(new CustomEvent("unlock"));
+  });
+
+  function animate(time: number) {
+    timer.update(time);
+    const delta = timer.getDelta();
+
+    updatePhysics(delta);
 
     renderer.render(scene, camera);
   }

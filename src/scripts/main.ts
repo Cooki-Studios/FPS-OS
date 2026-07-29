@@ -2,7 +2,8 @@ import { Mesh, MeshPhysicalMaterial, PerspectiveCamera, Scene } from "three";
 import { USDLoader } from "three/examples/jsm/loaders/USDLoader.js";
 import { initLighting } from "./lighting";
 import { initRenderer } from "./renderer";
-// import { initPhysics } from "./physics";
+import { addPhysicsToObject, initPhysics, togglePhysicsDebug } from "./physics";
+import { initInput, onActionPressed } from "./input";
 
 const scene = new Scene();
 const camera = new PerspectiveCamera(
@@ -12,13 +13,20 @@ const camera = new PerspectiveCamera(
   1000,
 );
 camera.rotation.order = "YXZ";
-camera.position.set(0, 1.8, 0);
+camera.position.set(0, 2.8, 0);
 
 initLighting(scene);
 initRenderer(scene, camera);
+initPhysics(scene);
+initInput();
+
+onActionPressed("debug", () => {
+  togglePhysicsDebug();
+});
 
 const loader = new USDLoader();
 const room = await loader.loadAsync("room.usdc");
+
 room.traverse((child) => {
   if (child instanceof Mesh) {
     child.receiveShadow = true;
@@ -30,8 +38,10 @@ room.traverse((child) => {
         map: child.material.map,
       });
     }
+
+    if (child.name.startsWith("D_")) {
+      addPhysicsToObject(child, true, true, scene);
+    } else addPhysicsToObject(child, false, true, scene);
   }
 });
 scene.add(room);
-
-// initPhysics(scene);
