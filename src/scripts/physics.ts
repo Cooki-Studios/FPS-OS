@@ -45,35 +45,29 @@ export async function addPhysicsToObject(
   const bodyInterface = joltInterface.GetPhysicsSystem().GetBodyInterface();
   let shape: initJolt.Shape;
 
-  switch (obj.name.replace("D_", "").split("_")[0]) {
-    default: {
-      obj.updateMatrixWorld(true);
+  obj.updateMatrixWorld(true);
 
-      const posAttr = obj.geometry.attributes.position;
-      const vertices = new Jolt.ArrayVec3();
+  const posAttr = obj.geometry.attributes.position;
+  const vertices = new Jolt.ArrayVec3();
 
-      for (let i = 0; i < posAttr.count; i++) {
-        vertices.push_back(
-          new Jolt.Vec3(
-            posAttr.getX(i) * obj.scale.x,
-            posAttr.getY(i) * obj.scale.y,
-            posAttr.getZ(i) * obj.scale.z,
-          ),
-        );
-      }
-
-      const shapeSettings = new Jolt.ConvexHullShapeSettings();
-      shapeSettings.set_mPoints(vertices);
-
-      const shapeResult = shapeSettings.Create();
-      shape = shapeResult.Get();
-
-      Jolt.destroy(vertices);
-      Jolt.destroy(shapeSettings);
-
-      break;
-    }
+  for (let i = 0; i < posAttr.count; i++) {
+    vertices.push_back(
+      new Jolt.Vec3(
+        posAttr.getX(i) * obj.scale.x,
+        posAttr.getY(i) * obj.scale.y,
+        posAttr.getZ(i) * obj.scale.z,
+      ),
+    );
   }
+
+  const shapeSettings = new Jolt.ConvexHullShapeSettings();
+  shapeSettings.set_mPoints(vertices);
+
+  const shapeResult = shapeSettings.Create();
+  shape = shapeResult.Get();
+
+  Jolt.destroy(vertices);
+  Jolt.destroy(shapeSettings);
 
   const pos = new Jolt.RVec3(
     obj.parent.position.x,
