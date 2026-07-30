@@ -1,29 +1,33 @@
-import {
-  WebGLRenderer,
-  SRGBColorSpace,
-  PCFShadowMap,
-  PerspectiveCamera,
-  Scene,
-  Timer,
-} from "three";
+import * as THREE from "three";
 import { updatePhysics } from "./physics";
-import { PointerLockControls } from "three/examples/jsm/controls/PointerLockControls.js";
 
-const timer = new Timer();
+let renderer: THREE.WebGLRenderer;
+export const timer = new THREE.Timer();
+export let enabled = false;
 
-export function initRenderer(scene: Scene, camera: PerspectiveCamera) {
-  const renderer = new WebGLRenderer({ antialias: true, alpha: false });
+export function enableRenderer() {
+  enabled = true;
+}
+
+export function initRenderer(
+  scene: THREE.Scene,
+  camera: THREE.PerspectiveCamera,
+): HTMLCanvasElement {
+  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
   renderer.setPixelRatio(window.devicePixelRatio);
   renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.outputColorSpace = SRGBColorSpace;
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = PCFShadowMap;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.0;
 
-  renderer.domElement.oncontextmenu = (e) => {
+  const canvas = renderer.domElement;
+
+  canvas.oncontextmenu = (e) => {
     e.preventDefault();
   };
 
-  document.body.appendChild(renderer.domElement);
+  document.body.appendChild(canvas);
 
   window.onresize = () => {
     renderer.setSize(window.innerWidth, window.innerHeight);
@@ -31,17 +35,9 @@ export function initRenderer(scene: Scene, camera: PerspectiveCamera) {
     camera.updateProjectionMatrix();
   };
 
-  const controls = new PointerLockControls(camera, document.body);
-  document.body.onclick = () => controls.lock();
-
-  controls.addEventListener("lock", function () {
-    document.dispatchEvent(new CustomEvent("lock"));
-  });
-  controls.addEventListener("unlock", function () {
-    document.dispatchEvent(new CustomEvent("unlock"));
-  });
-
   function animate(time: number) {
+    if (!enabled) return;
+
     timer.update(time);
     const delta = timer.getDelta();
 
@@ -50,4 +46,10 @@ export function initRenderer(scene: Scene, camera: PerspectiveCamera) {
     renderer.render(scene, camera);
   }
   renderer.setAnimationLoop(animate);
+
+  return canvas;
+}
+
+export function compileRenderer(scene: THREE.Scene, camera: THREE.Camera) {
+  renderer.compile(scene, camera);
 }

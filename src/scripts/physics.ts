@@ -1,49 +1,56 @@
-import initJolt from "jolt-physics/wasm-compat";
-import {
-  BufferAttribute,
-  BufferGeometry,
-  Group,
-  Mesh,
-  MeshBasicMaterial,
-  Scene,
-} from "three";
+// Modified from:
+// https://jrouwe.github.io/JoltPhysics.js/falling_shapes.html (view source for <script>)
+// https://jrouwe.github.io/JoltPhysics.js/js/example.js
+
+import * as THREE from "three";
+import type JoltTypes from "jolt-physics/wasm";
+const { default: initJolt } = await import("jolt-physics/wasm");
 
 let Jolt: typeof initJolt;
-let joltInterface: initJolt.JoltInterface;
-const dynamicObjects: Mesh[] = [];
+let joltInterface: JoltTypes.JoltInterface;
+let initPromise: Promise<void> | null = null;
+
+const dynamicObjects: THREE.Mesh[] = [];
 const LAYER_STATIC = 0;
 const LAYER_DYNAMIC = 1;
 const NUM_OBJECT_LAYERS = 2;
-const debugGroup = new Group();
+const debugGroup = new THREE.Group();
 debugGroup.visible = false;
 
-export async function initPhysics(scene: Scene) {
-  Jolt = await initJolt();
+export async function initPhysics(scene: THREE.Scene) {
+  if (initPromise) return initPromise;
 
-  const settings = new Jolt.JoltSettings();
-  settings.mMaxWorkerThreads = 3;
+  initPromise = (async () => {
+    Jolt = await initJolt();
 
-  setupCollisionFiltering(settings);
+    const settings = new Jolt.JoltSettings();
+    settings.mMaxWorkerThreads = 3;
 
-  joltInterface = new Jolt.JoltInterface(settings);
-  Jolt.destroy(settings);
+    setupCollisionFiltering(settings);
 
-  debugGroup.rotateX(-Math.PI / 2);
-  scene.add(debugGroup);
+    joltInterface = new Jolt.JoltInterface(settings);
+    Jolt.destroy(settings);
 
-  joltInterface.GetPhysicsSystem().SetGravity(new Jolt.Vec3(0, 0, -9.81));
+    debugGroup.rotateX(-Math.PI / 2);
+    scene.add(debugGroup);
+
+    joltInterface.GetPhysicsSystem().SetGravity(new Jolt.Vec3(0, 0, -9.81));
+  })();
+
+  return initPromise;
 }
 
 export async function addPhysicsToObject(
-  obj: Mesh,
+  obj: THREE.Mesh,
   dynamic: boolean = false,
   showDebug = false,
-  scene?: Scene,
+  scene?: THREE.Scene,
 ) {
+  if (initPromise) await initPromise;
   if (!obj.parent) return;
 
   const bodyInterface = joltInterface.GetPhysicsSystem().GetBodyInterface();
-  let shape: initJolt.Shape;
+  let shape: JoltTypes.Shape;
 
   obj.updateMatrixWorld(true);
 
@@ -81,18 +88,22 @@ export async function addPhysicsToObject(
     obj.parent.quaternion.w,
   );
 
-  const creationSettings = new Jolt.BodyCreationSettings(
+  const bodySettings = new Jolt.BodyCreationSettings(
     shape,
     pos,
     rot,
     dynamic ? Jolt.EMotionType_Dynamic : Jolt.EMotionType_Static,
     dynamic ? LAYER_DYNAMIC : LAYER_STATIC,
   );
+  bodySettings.mMotionQuality = Jolt.EMotionQuality_LinearCast;
+  bodySettings.mRestitution = 0.25;
+  bodySettings.mLinearDamping = 0.2;
+  bodySettings.mAngularDamping = 0.2;
 
-  const body = bodyInterface.CreateBody(creationSettings);
+  const body = bodyInterface.CreateBody(bodySettings);
   bodyInterface.AddBody(body.GetID(), Jolt.EActivation_Activate);
 
-  Jolt.destroy(creationSettings);
+  Jolt.destroy(bodySettings);
 
   obj.userData.body = body;
   dynamicObjects.push(obj);
@@ -108,7 +119,7 @@ export function togglePhysicsDebug() {
   debugGroup.visible = !debugGroup.visible;
 }
 
-function createDebugMeshForShape(shape: initJolt.Shape): BufferGeometry {
+function createDebugMeshForShape(shape: JoltTypes.Shape): THREE.BufferGeometry {
   const scale = new Jolt.Vec3(1, 1, 1);
   const triContext = new Jolt.ShapeGetTriangles(
     shape,
@@ -127,29 +138,35 @@ function createDebugMeshForShape(shape: initJolt.Shape): BufferGeometry {
 
   Jolt.destroy(triContext);
 
-  const geometry = new BufferGeometry();
-  geometry.setAttribute("position", new BufferAttribute(vertices, 3));
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.BufferAttribute(vertices, 3));
   geometry.computeVertexNormals();
   return geometry;
 }
 
-function createDebugMesh(shape: initJolt.Shape): Mesh {
+function createDebugMesh(shape: JoltTypes.Shape): THREE.Mesh {
   const geometry = createDebugMeshForShape(shape);
-  const material = new MeshBasicMaterial({
+  const material = new THREE.MeshBasicMaterial({
     color: 0x00f0ff,
     wireframe: true,
   });
-  const mesh = new Mesh(geometry, material);
+  const mesh = new THREE.Mesh(geometry, material);
   return mesh;
 }
+
+const MAX_PHYSICS_DELTA = 1 / 30;
 
 export function updatePhysics(delta: number) {
   if (!joltInterface) return;
 
+  const clampedDelta = Math.min(delta, MAX_PHYSICS_DELTA);
+  const numSteps = Math.min(4, Math.max(1, Math.ceil(clampedDelta / (1 / 60))));
+  joltInterface.Step(delta, numSteps);
+
   const bodyInterface = joltInterface.GetPhysicsSystem().GetBodyInterface();
 
   for (const obj of dynamicObjects) {
-    if (!obj.parent) return;
+    if (!obj.parent) continue;
 
     const body = obj.userData.body;
 
@@ -169,12 +186,9 @@ export function updatePhysics(delta: number) {
       );
     }
   }
-
-  var numSteps = delta > 1.0 / 55.0 ? 2 : 1;
-  joltInterface.Step(delta, numSteps);
 }
 
-function setupCollisionFiltering(settings: initJolt.JoltSettings) {
+function setupCollisionFiltering(settings: JoltTypes.JoltSettings) {
   let objectFilter = new Jolt.ObjectLayerPairFilterTable(NUM_OBJECT_LAYERS);
   objectFilter.EnableCollision(LAYER_STATIC, LAYER_DYNAMIC);
   objectFilter.EnableCollision(LAYER_DYNAMIC, LAYER_DYNAMIC);

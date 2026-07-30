@@ -5,19 +5,20 @@ const actions: { [action: string]: string } = {
   right: "d",
   jump: " ",
   debug: "`",
+  fullscreen: "f",
 };
 
 const keys: { [key: string]: boolean } = {};
 const pressEvents: { [key: string]: CustomEvent } = {};
 const releaseEvents: { [key: string]: CustomEvent } = {};
-export let captured = false;
+export let enabled = false;
 
-document.addEventListener("lock", function () {
-  captured = true;
-});
-document.addEventListener("unlock", function () {
-  captured = false;
-});
+export function enableInput() {
+  enabled = true;
+}
+export function disableInput() {
+  enabled = false;
+}
 
 export function initInput() {
   for (const [action, key] of Object.entries(actions)) {
@@ -26,7 +27,13 @@ export function initInput() {
   }
 
   document.onkeydown = (e) => {
-    if (!captured) return;
+    if (e.key == actions["fullscreen"]) {
+      if (!document.fullscreenElement) {
+        document.body.requestFullscreen();
+      } else document.exitFullscreen();
+    }
+
+    if (!enabled) return;
 
     const key = e.key.toLowerCase();
     if (!keys[key]) {
@@ -37,7 +44,7 @@ export function initInput() {
   };
 
   document.onkeyup = (e) => {
-    if (!captured) return;
+    if (!enabled) return;
 
     const key = e.key.toLowerCase();
     keys[key] = false;

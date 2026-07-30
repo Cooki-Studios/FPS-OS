@@ -1,3 +1,17 @@
 import { defineConfig } from "vite";
 
-export default defineConfig({ base: "/FPS-OS/" });
+export default defineConfig({
+  base: "/fps-os/",
+  build: {
+    chunkSizeWarningLimit: 1000,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes("node_modules/three")) {
+            return "three";
+          }
+        },
+      },
+    },
+  },
+});
