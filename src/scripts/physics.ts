@@ -17,6 +17,30 @@ const NUM_OBJECT_LAYERS = 2;
 const debugGroup = new THREE.Group();
 debugGroup.visible = false;
 
+if (import.meta.hot) {
+  import.meta.hot.dispose(() => {
+    if (joltInterface) {
+      const bodyInterface = joltInterface.GetPhysicsSystem().GetBodyInterface();
+      for (const obj of dynamicObjects) {
+        if (obj.userData.body) {
+          bodyInterface.RemoveBody(obj.userData.body.GetID());
+          bodyInterface.DestroyBody(obj.userData.body.GetID());
+        }
+        if (obj.userData.debugMesh) {
+          debugGroup.remove(obj.userData.debugMesh);
+          obj.userData.debugMesh.geometry.dispose();
+          obj.userData.debugMesh.material.dispose();
+          delete obj.userData.debugMesh;
+        }
+      }
+      Jolt.destroy(joltInterface);
+    }
+    dynamicObjects.length = 0;
+    debugGroup.clear();
+    initPromise = null;
+  });
+}
+
 export async function initPhysics(scene: THREE.Scene) {
   if (initPromise) return initPromise;
 
@@ -31,10 +55,7 @@ export async function initPhysics(scene: THREE.Scene) {
     joltInterface = new Jolt.JoltInterface(settings);
     Jolt.destroy(settings);
 
-    debugGroup.rotateX(-Math.PI / 2);
     scene.add(debugGroup);
-
-    joltInterface.GetPhysicsSystem().SetGravity(new Jolt.Vec3(0, 0, -9.81));
   })();
 
   return initPromise;
@@ -44,6 +65,7 @@ export async function addPhysicsToObject(
   obj: THREE.Mesh,
   dynamic: boolean = false,
   showDebug = false,
+  player = false,
   scene?: THREE.Scene,
 ) {
   if (initPromise) await initPromise;
@@ -100,9 +122,17 @@ export async function addPhysicsToObject(
   bodySettings.mLinearDamping = 0.2;
   bodySettings.mAngularDamping = 0.2;
 
+  if (player)
+    bodySettings.set_mAllowedDOFs(
+      Jolt.EAllowedDOFs_TranslationX |
+        Jolt.EAllowedDOFs_TranslationY |
+        Jolt.EAllowedDOFs_TranslationZ,
+    );
+
   const body = bodyInterface.CreateBody(bodySettings);
   bodyInterface.AddBody(body.GetID(), Jolt.EActivation_Activate);
 
+  Jolt.destroy(shapeResult);
   Jolt.destroy(bodySettings);
 
   obj.userData.body = body;
@@ -185,6 +215,8 @@ export function updatePhysics(delta: number) {
         rot.GetW(),
       );
     }
+
+    Jolt.destroy(pos);
   }
 }
 

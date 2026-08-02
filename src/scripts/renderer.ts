@@ -3,14 +3,23 @@ import { updatePhysics } from "./physics";
 
 let renderer: THREE.WebGLRenderer;
 export const timer = new THREE.Timer();
-export let enabled = false;
 
-export function enableRenderer() {
-  enabled = true;
+export function enableRenderer(
+  scene: THREE.Scene,
+  camera: THREE.PerspectiveCamera,
+) {
+  function animate(time: number) {
+    timer.update(time);
+    const delta = timer.getDelta();
+
+    updatePhysics(delta);
+
+    renderer.render(scene, camera);
+  }
+  renderer.setAnimationLoop(animate);
 }
 
 export function initRenderer(
-  scene: THREE.Scene,
   camera: THREE.PerspectiveCamera,
 ): HTMLCanvasElement {
   renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
@@ -34,18 +43,6 @@ export function initRenderer(
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
   };
-
-  function animate(time: number) {
-    if (!enabled) return;
-
-    timer.update(time);
-    const delta = timer.getDelta();
-
-    updatePhysics(delta);
-
-    renderer.render(scene, camera);
-  }
-  renderer.setAnimationLoop(animate);
 
   return canvas;
 }

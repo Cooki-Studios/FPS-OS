@@ -15,26 +15,40 @@ const camera = new THREE.PerspectiveCamera(
   1000,
 );
 camera.rotation.order = "YXZ";
-camera.position.set(0, 2.8, 4);
+
+const player = new THREE.Group();
+
+const playerGeo = new THREE.CapsuleGeometry(1, 2);
+const playerMat = new THREE.MeshPhysicalMaterial({
+  colorWrite: false,
+});
+const playerMesh = new THREE.Mesh(playerGeo, playerMat);
+playerMesh.castShadow = true;
+
+scene.add(player);
+player.position.set(0, 2, 0);
+player.add(playerMesh);
+player.add(camera);
+camera.position.set(0, 1.8, 0);
 
 const manager = new THREE.LoadingManager();
 manager.onLoad = () => {
-  compileRenderer(scene, camera);
-  enableRenderer();
+  for (const mesh of meshes) {
+    if (mesh.name.startsWith("D_")) {
+      addPhysicsToObject(mesh, true, true, false, scene);
+    } else addPhysicsToObject(mesh, false, true, false, scene);
+  }
 
-  room.traverse((child) => {
-    if (child instanceof THREE.Mesh) {
-      if (child.name.startsWith("D_")) {
-        addPhysicsToObject(child, true, true, scene);
-      } else addPhysicsToObject(child, false, true, scene);
-    }
-  });
+  addPhysicsToObject(playerMesh, true, false, true, scene);
+
+  compileRenderer(scene, camera);
+  enableRenderer(scene, camera);
 
   console.log("Loading complete!");
 };
 
 initLighting(scene);
-const canvas = initRenderer(scene, camera);
+const canvas = initRenderer(camera);
 initPhysics(scene);
 initInput();
 
@@ -56,30 +70,42 @@ const loader = new USDLoader(manager);
 const room = await loader.loadAsync("room.usdc");
 const hdrLoader = new HDRLoader(manager);
 
+const meshes: THREE.Mesh[] = [];
 room.traverse((child) => {
   if (child instanceof THREE.Mesh) {
-    child.receiveShadow = true;
-    child.castShadow = false;
-
-    if (child.name == "D_Cube_001" && child.parent) {
-      child.parent.rotation.x = Math.random() * Math.PI * 2;
-      child.parent.rotation.y = Math.random() * Math.PI * 2;
-      child.parent.rotation.z = Math.random() * Math.PI * 2;
-    }
-
-    if (child.name.startsWith("D_")) {
-      child.castShadow = true;
-    } else {
-      hdrLoader
-        .loadAsync(`/fps-os/textures/${child.name}_Baked.hdr`)
-        .then((tex) => {
-          child.geometry.setAttribute("uv2", child.geometry.attributes.uv);
-          child.material.lightMap = tex;
-          child.material.lightMapIntensity = 2.5;
-
-          child.material.needsUpdate = true;
-        });
-    }
+    meshes.push(child);
   }
 });
-scene.add(room);
+
+for (const mesh of meshes) {
+  if (!mesh.parent) continue;
+
+  if (mesh.name === "D_Cube_001") {
+    mesh.parent.rotation.x = Math.random() * Math.PI * 2;
+    mesh.parent.rotation.y = Math.random() * Math.PI * 2;
+    mesh.parent.rotation.z = Math.random() * Math.PI * 2;
+  }
+
+  scene.attach(mesh.parent);
+
+  mesh.receiveShadow = true;
+
+  if (mesh.name.startsWith("D_")) {
+    mesh.castShadow = true;
+  } else {
+    hdrLoader
+      .loadAsync(`/fps-os/textures/${mesh.name}_Baked.hdr`)
+      .then((tex) => {
+        const mat = Array.isArray(mesh.material)
+          ? (mesh.material[0] as THREE.MeshPhysicalMaterial)
+          : (mesh.material as THREE.MeshPhysicalMaterial);
+
+        if (mat && "aoMap" in mat) {
+          mat.aoMap = tex;
+          mat.needsUpdate = true;
+        }
+
+        mat.needsUpdate = true;
+      });
+  }
+}

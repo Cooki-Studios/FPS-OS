@@ -4,7 +4,7 @@ export function initLighting(scene: Scene, debug = false) {
   const light = new AmbientLight(0xffffff, 3.0); // global light
   scene.add(light);
 
-  const directionalLight = new DirectionalLight(0xffffff, 1.0); // shading light
+  const directionalLight = new DirectionalLight(0xffffff, 3.0); // shading light
   scene.add(directionalLight);
   directionalLight.castShadow = true;
   directionalLight.position.set(10, 20, 10);
@@ -21,7 +21,9 @@ export function initLighting(scene: Scene, debug = false) {
   if (debug) scene.add(new CameraHelper(directionalLight.shadow.camera));
 
   directionalLight.shadow.intensity = 0.55;
-  directionalLight.shadow.bias = 0.01;
-  directionalLight.shadow.mapSize.width = 4096;
-  directionalLight.shadow.mapSize.height = 4096;
+  directionalLight.shadow.normalBias = -0.04;
+  directionalLight.shadow.radius = 1.25;
+
+  directionalLight.shadow.mapSize.width = 2048;
+  directionalLight.shadow.mapSize.height = 2048;
 }
