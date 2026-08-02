@@ -18,7 +18,7 @@ camera.rotation.order = "YXZ";
 
 const player = new THREE.Group();
 
-const playerGeo = new THREE.CapsuleGeometry(1, 2);
+const playerGeo = new THREE.CapsuleGeometry(1, 2, 16, 32);
 const playerMat = new THREE.MeshPhysicalMaterial({
   colorWrite: false,
 });
@@ -104,8 +104,6 @@ for (const mesh of meshes) {
           mat.aoMap = tex;
           mat.needsUpdate = true;
         }
-
-        mat.needsUpdate = true;
       });
   }
 }

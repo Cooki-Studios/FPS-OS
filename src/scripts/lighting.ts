@@ -10,19 +10,18 @@ export function initLighting(scene: Scene, debug = false) {
   directionalLight.position.set(10, 20, 10);
 
   const shadowCam = directionalLight.shadow.camera;
-  shadowCam.left = -20;
-  shadowCam.right = 20;
-  shadowCam.top = 20;
-  shadowCam.bottom = -20;
-  shadowCam.near = 0.5;
-  shadowCam.far = 50;
+  const shadowRes = 10;
+  shadowCam.left = -shadowRes;
+  shadowCam.right = shadowRes;
+  shadowCam.top = shadowRes;
+  shadowCam.bottom = -shadowRes;
   shadowCam.updateProjectionMatrix();
 
-  if (debug) scene.add(new CameraHelper(directionalLight.shadow.camera));
+  if (debug) scene.add(new CameraHelper(shadowCam));
 
   directionalLight.shadow.intensity = 0.55;
   directionalLight.shadow.normalBias = -0.04;
-  directionalLight.shadow.radius = 1.25;
+  directionalLight.shadow.radius = 1.5;
 
   directionalLight.shadow.mapSize.width = 2048;
   directionalLight.shadow.mapSize.height = 2048;
